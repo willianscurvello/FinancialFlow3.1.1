@@ -1,23 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase'; // Importar o cliente Supabase
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash } from 'lucide-react'; // Importar o ícone Edit
 
 interface Company {
+  id: string; // UUID gerado pelo Supabase
   name: string;
   cnpj: string;
-  address: string; // Corrigido para 'address'
+  address: string; // Campo de endereço
 }
 
 export function CompaniesPage() {
   const { user } = useAuth();
   const [newCompany, setNewCompany] = useState<Company>({
+    id: '',
     name: '',
     cnpj: '',
-    address: '', // Inicializar o campo de endereço
+    address: '',
   });
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]); // Estado para armazenar as empresas
+
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  const fetchCompanies = async () => {
+    const { data, error } = await supabase.from('companies').select('*');
+    if (error) {
+      console.error('Error fetching companies:', error);
+    } else {
+      setCompanies(data);
+    }
+  };
 
   const handleAddCompany = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +43,7 @@ export function CompaniesPage() {
       return;
     }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('companies')
       .insert([{ 
         name: newCompany.name,
@@ -39,16 +54,15 @@ export function CompaniesPage() {
     if (error) {
       console.error('Error adding company:', error);
       alert('Erro ao adicionar empresa: ' + error.message); // Exibir mensagem de erro
-    } else if (data && data.length > 0) {
-      setCompanies([...companies, { ...newCompany }]); // Atualizar a lista de empresas
+    } else {
       setNewCompany({
+        id: '',
         name: '',
         cnpj: '',
         address: '', // Resetar o campo de endereço
       });
       setIsPopupOpen(false); // Fechar a popup após adicionar
-    } else {
-      alert('Erro ao adicionar empresa: Nenhum dado retornado.');
+      fetchCompanies(); // Atualizar a lista de empresas
     }
   };
 
@@ -123,6 +137,40 @@ export function CompaniesPage() {
           </div>
         </div>
       )}
+
+      {/* Listagem de Empresas */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Lista de Empresas</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nome</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">CNPJ</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Endereço</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {companies.map(company => (
+                <tr key={company.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">{company.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{company.cnpj}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{company.address}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <button onClick={() => handleEditCompany(company.id)} className="text-primary-600 hover:text-primary-900 dark:hover:text-primary-400 mr-4">
+                      <Edit className="h-5 w-5" />
+                    </button>
+                    <button onClick={() => handleDeleteCompany(company.id)} className="text-red-600 hover:text-red-900 dark:hover:text-red-400">
+                      <Trash className="h-5 w-5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
